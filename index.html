@@ -1,0 +1,545 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Momentum — Personal Tracker</title>
+<meta name="theme-color" content="#efe5e8">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Momentum">
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="apple-touch-icon" href="./icons/icon-192.png">
+<style>
+:root{--bg:#e8dadd;--card:#f4eaed;--chip:#e3d2d6;--ink:#0b0b0b;--muted:#7d6d72;--line:rgba(11,11,11,.13);--red:#c4313c}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html{background:var(--bg);-webkit-text-size-adjust:100%}
+body{margin:0;min-height:100dvh;background:linear-gradient(#f0e6e9,#e6d6da 70%);color:var(--ink);font:16px/1.35 -apple-system,"SF Pro Display","Helvetica Neue",Inter,Segoe UI,Arial,sans-serif;letter-spacing:-.01em}
+button,input,select,textarea{font:inherit;color:inherit;letter-spacing:inherit}
+button{border:0;background:none;cursor:pointer;padding:0;touch-action:manipulation}
+[hidden]{display:none!important}
+svg{display:block;flex-shrink:0}
+.app{max-width:520px;margin:auto;padding:0 14px calc(120px + env(safe-area-inset-bottom))}
+
+/* top bar */
+.top{position:sticky;top:0;z-index:20;margin:0 -14px;padding:calc(10px + env(safe-area-inset-top)) 14px 10px;display:grid;grid-template-columns:48px 1fr 48px;align-items:center;gap:8px;background:rgba(240,230,233,.96);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
+.round{width:48px;height:48px;border-radius:50%;background:var(--chip);display:grid;place-items:center}
+.round.sm{width:44px;height:44px}
+.round.dark{background:#000;color:#fff}
+.seg{justify-self:center;display:flex;background:var(--chip);border-radius:30px;padding:4px}
+.seg button{padding:11px 15px;border-radius:26px;font-size:16px;transition:background .15s}
+.seg button.on{background:#fff}
+.pagetitle{justify-self:center;font-size:20px;font-weight:600;letter-spacing:-.03em}
+.avatar{font-weight:700;font-size:18px;background:#b8664a;color:#fff}
+
+/* chips + rows */
+.chip{display:inline-flex;align-items:center;gap:7px;height:44px;padding:0 17px;border-radius:24px;background:var(--chip);font-size:15px;white-space:nowrap}
+.chip.ic{width:44px;padding:0;justify-content:center}
+.chip.solid{background:#000;color:#fff}
+.grow{flex:1}
+.row{display:flex;align-items:center;gap:8px}
+.weeknav{display:flex;align-items:center;gap:8px;margin:8px 0 12px}
+.heading{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:22px 6px -4px}
+.sub{color:var(--muted);font-size:14px}
+.filters{display:flex;flex-wrap:wrap;gap:6px;margin:14px 0 0}
+.filters button{height:38px;padding:0 15px;border-radius:20px;background:var(--chip);font-size:14px}
+.filters button.on{background:#000;color:#fff}
+
+/* day strip */
+.strip{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
+.sd{background:#fff;border-radius:22px;padding:9px 0 10px;display:flex;flex-direction:column;align-items:center;gap:1px;position:relative}
+.sd small{font-size:11px;color:var(--muted)}
+.sd b{font-size:19px;font-weight:600}
+.sd i{width:5px;height:5px;border-radius:50%;background:#000;position:absolute;bottom:4px}
+.sd.on{background:#000;color:#fff}.sd.on small{color:#bbb}.sd.on i{background:#fff}
+.sd.today small{color:#000;font-weight:700}.sd.on.today small{color:#fff}
+
+/* cards */
+.slot{display:flex;align-items:center;gap:8px;margin:20px 0 8px}
+.slot .more{margin-left:auto}
+.card{background:var(--card);border-radius:34px;padding:20px 14px 14px}
+@supports (corner-shape:squircle){.card{corner-shape:squircle;border-radius:56px}.tile{corner-shape:squircle;border-radius:26px}}
+.title{font-size:30px;line-height:1.05;font-weight:500;letter-spacing:-.045em;margin:0 8px 2px}
+.meta{margin:0 8px;color:var(--muted);font-size:14px}
+.tiles{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin:16px 0 14px}
+.tile{aspect-ratio:1/1.32;background:#fff;border-radius:15px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;min-width:0;transition:transform .12s,background .15s}
+.tile:active{transform:scale(.94)}
+.tile .dow{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+.tile .dn{font-size:18px;font-weight:600;line-height:1}
+.tile .st{height:14px;display:grid;place-items:center}
+.pd{width:6px;height:6px;border-radius:50%;border:1.5px solid #000}
+.tile.done{background:#000;color:#fff}.tile.done .dow{color:#aaa}
+.tile.sel{outline:2px solid #000;outline-offset:2px}
+.tile.today .dow{color:#000;font-weight:700}.tile.today.done .dow{color:#fff}
+.stripe{position:relative;height:36px;border-radius:20px;border:1px solid var(--line);overflow:hidden;background:repeating-linear-gradient(115deg,rgba(11,11,11,.17) 0 1.5px,transparent 1.5px 5px)}
+.stripe i{position:absolute;inset:0 auto 0 0;background:repeating-linear-gradient(115deg,#0b0b0b 0 2.2px,transparent 2.2px 5px);transition:width .35s}
+.stripe b{position:absolute;right:4px;top:4px;bottom:4px;min-width:60px;padding:0 12px;border-radius:16px;background:#fff;display:grid;place-items:center;font-size:14px;font-weight:500}
+.sumrow{display:flex;justify-content:space-between;align-items:flex-end;margin:0 8px 14px}
+.big{font-size:44px;line-height:1;font-weight:500;letter-spacing:-.05em}
+.big span{font-size:20px;color:var(--muted);letter-spacing:-.02em}
+.sumrow .r{text-align:right}
+textarea{width:100%;min-height:96px;border:0;border-radius:22px;padding:14px;background:#fff;resize:vertical;outline:0;margin-top:12px}
+
+/* today plan */
+.plan{margin-top:12px;padding:16px 12px 14px}
+.plan h3{margin:0 8px 2px;font-size:26px;font-weight:500;letter-spacing:-.045em}
+.plan .grp{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:14px 8px 0}
+.prow{display:flex;align-items:center;gap:12px;width:100%;text-align:left;background:#fff;border-radius:24px;padding:9px 14px 9px 9px;margin-top:8px}
+.prow:active{transform:scale(.985)}
+.pc{width:36px;height:36px;border-radius:50%;box-shadow:inset 0 0 0 1.5px #000;display:grid;place-items:center;color:#fff;flex-shrink:0}
+.prow.done .pc{background:#000}
+.prow .pt{flex:1;min-width:0}
+.prow b{display:block;font-weight:500;font-size:16px;letter-spacing:-.03em}
+.prow small{color:var(--muted);font-size:12.5px}
+.prow.done small{color:#0b0b0b;font-weight:500}
+.allclear{margin:12px 8px 0;color:var(--muted);font-size:14px}
+/* week matrix */
+.matrix{display:grid;grid-template-columns:minmax(0,1.55fr) repeat(7,minmax(0,1fr));gap:8px 4px;align-items:center}
+.mh{text-align:center;font-size:10px;color:var(--muted);text-transform:uppercase;line-height:1.25}
+.mh b{display:block;font-size:14px;color:var(--ink);font-weight:600}
+.mh.today b{background:#000;color:#fff;border-radius:50%;width:24px;height:24px;line-height:24px;margin:1px auto 0}
+.mname{font-size:12.5px;line-height:1.15;overflow:hidden;padding-right:4px}
+.mname small{display:block;color:var(--muted);font-size:11px;margin-top:1px}
+.cell{width:100%;max-width:34px;aspect-ratio:1;border-radius:50%;background:#fff;margin:auto;display:grid;place-items:center;color:#fff}
+.cell.plan{box-shadow:inset 0 0 0 1.5px #000}
+.cell.done{background:#000}
+
+/* calendar */
+.cal{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-top:12px}
+.cal .h{text-align:center;font-size:11px;color:var(--muted);text-transform:uppercase}
+.d{aspect-ratio:1;border-radius:50%;background:#fff;display:grid;place-items:center;font-size:16px;position:relative}
+.d.out{opacity:.4;background:transparent}
+.d.done{background:#000;color:#fff}
+.d.plan{box-shadow:inset 0 0 0 1.5px #000}
+.d.today:not(.done)::after{content:"";position:absolute;bottom:5px;width:14px;height:2px;border-radius:2px;background:#000}
+.d.today.done::after{content:"";position:absolute;bottom:5px;width:14px;height:2px;border-radius:2px;background:#fff}
+.selwrap{position:relative;display:inline-flex}
+.selwrap select{appearance:none;-webkit-appearance:none;height:44px;border:0;border-radius:24px;background:var(--chip);padding:0 40px 0 17px;font-size:15px;max-width:100%}
+.selwrap svg{position:absolute;right:13px;top:14px;pointer-events:none}
+.legend{display:flex;gap:16px;flex-wrap:wrap;margin:14px 8px 0;font-size:12px;color:var(--muted)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend i{width:14px;height:14px;border-radius:50%;background:#fff;display:inline-block}
+.legend i.f{background:#000}.legend i.p{box-shadow:inset 0 0 0 1.5px #000}
+
+/* activities page */
+.alist{display:flex;flex-direction:column;gap:8px;margin-top:14px}
+.arow{display:flex;align-items:center;gap:12px;background:#fff;border-radius:26px;padding:12px 12px 12px 18px}
+.arow .n{font-size:12px;color:var(--muted);width:22px}
+.arow .t{flex:1;min-width:0}
+.arow .t b{display:block;font-weight:500;font-size:17px;letter-spacing:-.03em}
+.arow .t span{color:var(--muted);font-size:13px}
+.empty{text-align:center;color:var(--muted);padding:30px 10px}
+
+/* data page */
+.sect{margin-top:14px}
+.sect h3{margin:0 4px 4px;font-size:22px;font-weight:500;letter-spacing:-.04em}
+.sect p{margin:0 4px 14px;color:var(--muted);font-size:14px}
+.btns{display:flex;flex-wrap:wrap;gap:8px}
+.btn{height:46px;padding:0 20px;border-radius:26px;background:#fff;font-weight:500;font-size:15px;display:inline-flex;align-items:center;gap:8px}
+.btn.dark{background:#000;color:#fff}
+.btn.warn{color:var(--red)}
+.btn:disabled{opacity:.4;cursor:default}
+.status{display:inline-flex;align-items:center;gap:8px;margin:0 4px 14px;font-size:13px;color:var(--muted)}
+.status:before{content:"";width:8px;height:8px;border-radius:50%;background:#000}
+.foot{margin:18px 10px 0;font-size:12px;color:var(--muted);line-height:1.6}
+
+/* dock */
+.dock{position:fixed;left:0;right:0;bottom:0;z-index:30;padding:26px 14px calc(14px + env(safe-area-inset-bottom));pointer-events:none;background:linear-gradient(transparent,rgba(230,214,218,.92) 55%)}
+.dockin{max-width:520px;margin:auto;display:flex;justify-content:space-between;align-items:center}
+.dockin>*{pointer-events:auto}
+.fab{width:58px;height:58px;border-radius:50%;background:#000;color:#fff;display:grid;place-items:center;box-shadow:0 8px 22px rgba(0,0,0,.25)}
+.navs{display:flex;gap:8px}
+.navs button{width:54px;height:54px;border-radius:50%;background:var(--chip);display:grid;place-items:center;position:relative}
+.navs button.on{background:#000;color:#fff}
+
+/* editor */
+dialog{border:0;border-radius:32px;padding:22px;width:min(480px,calc(100% - 20px));background:#f4eaed;color:var(--ink);box-shadow:0 30px 80px rgba(40,20,28,.35)}
+dialog::backdrop{background:rgba(30,15,20,.45);backdrop-filter:blur(3px)}
+dialog h2{margin:0 0 16px;font-size:28px;font-weight:500;letter-spacing:-.045em}
+label.l{display:block;font-size:12px;color:var(--muted);margin:14px 6px 6px}
+input[type=text],input[type=number],input[type=date],select.f{width:100%;height:48px;border:0;border-radius:24px;padding:0 18px;background:#fff;outline:0}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.wds{display:grid;grid-template-columns:repeat(7,1fr);gap:5px}
+.wds label{position:relative}
+.wds input{position:absolute;opacity:0;inset:0;cursor:pointer}
+.wds span{display:grid;place-items:center;height:44px;border-radius:16px;background:#fff;font-size:12px}
+.wds input:checked+span{background:#000;color:#fff}
+.formactions{display:flex;gap:8px;margin-top:20px}
+@media(max-width:360px){.seg button{padding:10px 11px;font-size:15px}.title{font-size:26px}}
+@media(min-width:700px){body{padding-top:10px}.app{padding-bottom:140px}}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <div class="top">
+    <button class="round" id="leftBtn" aria-label="Today"></button>
+    <div class="seg" id="seg" role="tablist">
+      <button data-view="daily" class="on">Daily</button><button data-view="weekly">Weekly</button><button data-view="monthly">Monthly</button>
+    </div>
+    <div class="pagetitle" id="pageTitle" hidden></div>
+    <button class="round avatar" id="avatarBtn" aria-label="Data and sync">M</button>
+  </div>
+
+  <!-- HOME -->
+  <main id="page-home">
+    <section id="v-daily"></section>
+    <section id="v-weekly" hidden></section>
+    <section id="v-monthly" hidden></section>
+  </main>
+
+  <!-- ACTIVITIES -->
+  <main id="page-activities" hidden>
+    <div class="row" style="margin-top:8px"><span class="sub" id="actCount"></span><span class="grow"></span><button class="btn dark" data-act="add">+ Add activity</button></div>
+    <div class="filters" id="actFilters">
+      <button data-filter="all" class="on">All</button><button data-filter="habit">Habits</button><button data-filter="task">Recurring</button><button data-filter="once">One-time</button>
+    </div>
+    <div class="alist" id="actList"></div>
+  </main>
+
+  <!-- DATA & SYNC (the occasional stuff lives here, at the bottom of the app) -->
+  <main id="page-data" hidden>
+    <section class="card sect" style="margin-top:8px">
+      <h3>Cloud sync</h3>
+      <p id="cloudHint">Optional: configure Firebase to synchronize between phone and computer.</p>
+      <div class="status" id="cloudStatusWrap"><span id="cloudStatus">Local-only mode</span></div>
+      <div class="btns">
+        <button class="btn dark" id="cloudLoginBtn" type="button">Sign in with Google</button>
+        <button class="btn" id="cloudSyncBtn" type="button" hidden>Sync now</button>
+        <button class="btn" id="cloudLogoutBtn" type="button" hidden>Sign out</button>
+      </div>
+    </section>
+
+    <section class="card sect">
+      <h3>Save &amp; export</h3>
+      <p>Data is saved automatically in this browser. Export for backups or to move to another device.</p>
+      <div class="status"><span id="saveStatus" role="status">Auto-saved locally</span></div>
+      <div class="btns">
+        <button class="btn dark" id="saveNowBtn">Save now</button>
+        <button class="btn" id="exportBtn">↓ Export CSV</button>
+        <button class="btn" id="backupBtn">↓ Save JSON</button>
+      </div>
+    </section>
+
+    <section class="card sect">
+      <h3>Import</h3>
+      <p>Replaces everything on this device with the file you choose. JSON restores exactly; CSV works too.</p>
+      <div class="btns">
+        <button class="btn" id="importBtn">↑ Import CSV</button>
+        <button class="btn" id="jsonImportBtn">↑ Import JSON</button>
+      </div>
+      <input id="fileImport" type="file" accept=".csv,text/csv,.json,application/json" hidden>
+    </section>
+
+    <section class="card sect">
+      <h3>Notification</h3>
+      <p>Shows “Today · 2 / 5 done” in your notification shade and updates it as you check things off. It refreshes whenever you open the app.</p>
+      <div class="status"><span id="notifStatus">Off</span></div>
+      <div class="btns"><button class="btn dark" id="notifBtn" type="button">Turn on</button></div>
+    </section>
+
+    <section class="card sect">
+      <h3>Reset</h3>
+      <p>Restore the starter activity list and clear all check-ins and notes on this device.</p>
+      <div class="btns"><button class="btn warn" id="resetBtn">Reset local tracker</button></div>
+    </section>
+    <div class="foot">Browser storage can be cleared, so keep a JSON or CSV backup now and then. Your data is not stored inside the app files.</div>
+  </main>
+</div>
+
+<!-- dock -->
+<nav class="dock"><div class="dockin">
+  <button class="fab" data-act="add" aria-label="Add activity" id="fab"></button>
+  <div class="navs" id="navs">
+    <button data-page="home" class="on" aria-label="Tracker"></button>
+    <button data-page="activities" aria-label="Activities"></button>
+    <button data-page="data" aria-label="Data and sync"></button>
+  </div>
+</div></nav>
+
+<dialog id="editor">
+  <form id="editorForm" method="dialog">
+    <h2 id="editorHeading">Add activity</h2>
+    <label class="l" for="activityName">Name</label>
+    <input type="text" id="activityName" maxlength="120" placeholder="e.g., Embedded C practice">
+    <div class="two">
+      <div><label class="l" for="activityType">Type</label>
+        <select class="f" id="activityType" style="width:100%;height:48px;border:0;border-radius:24px;padding:0 14px;background:#fff"><option value="habit">Habit</option><option value="task">Recurring task</option><option value="once">One-time task</option></select></div>
+      <div id="targetWrap"><label class="l" for="activityTarget">Times per week</label><input type="number" id="activityTarget" min="1" max="7" value="3"></div>
+    </div>
+    <div class="two">
+      <div><label class="l" for="activityMinutes">Minutes (optional)</label><input type="number" id="activityMinutes" min="0" max="1440"></div>
+      <div><label class="l" for="activityDue">Due date (optional)</label><input type="date" id="activityDue"></div>
+    </div>
+    <label class="l">Ideal weekdays (none = flexible)</label>
+    <div class="wds" id="wds"></div>
+    <div class="formactions">
+      <button type="button" id="saveActivity" class="btn dark">Save</button>
+      <button type="button" id="cancelEditor" class="btn">Cancel</button>
+      <button type="button" id="deleteActivity" class="btn warn" style="margin-left:auto">Delete</button>
+    </div>
+  </form>
+</dialog>
+
+<script>
+(()=>{'use strict';
+const KEY='momentum-personal-tracker-v1',DAY=864e5;
+const iso=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+const parse=s=>new Date(s+'T12:00:00');
+const add=(s,n)=>iso(new Date(parse(s).getTime()+n*DAY));
+const today=()=>iso(new Date());
+const monday=s=>add(s,-((parse(s).getDay()+6)%7));
+const fmt=(s,o={month:'short',day:'numeric'})=>parse(s).toLocaleDateString(undefined,o);
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const pad2=n=>String(n).padStart(2,'0');
+
+/* icons */
+const P={home:'<path d="M4 11l8-7 8 7v8a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1z"/>',list:'<path d="M9 6h11M9 12h11M9 18h11M3.5 6l1.2 1.2L7 5M3.5 12l1.2 1.2L7 11M3.5 18l1.2 1.2L7 17"/>',cloud:'<path d="M7 18h10a4 4 0 0 0 .6-7.95A5.5 5.5 0 0 0 7 9.6 4.25 4.25 0 0 0 7 18z"/>',plus:'<path d="M12 5v14M5 12h14"/>',clock:'<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>',dots:'<circle cx="5" cy="12" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="19" cy="12" r="1.2"/>',back:'<path d="M15 5l-7 7 7 7"/>',left:'<path d="M14 6l-6 6 6 6"/>',right:'<path d="M10 6l6 6-6 6"/>',check:'<path d="M5 12.5l4.5 4.5L19 7.5"/>',cal:'<rect x="4" y="5.5" width="16" height="14" rx="3"/><path d="M4 10h16M9 3.5v4M15 3.5v4"/>',caret:'<path d="M7 10l5 5 5-5"/>'};
+const I=(n,s=22,w=1.8)=>`<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round">${P[n]}</svg>`;
+const CHK=I('check',14,2.6);
+
+/* data */
+const defaults=[['Running','habit',4,0,[],null],['Home exercise','habit',4,0,[],null],['Cooking at home','habit',5,0,[],null],['Reading books','habit',5,40,[],null],['Technical reading','habit',3,30,[],null],['Basic house cleaning','habit',4,20,[],null],['Embedded C practice','habit',4,30,[],null],['STM32 hands-on project','habit',3,45,[],null],['Bathroom cleaning','task',1,0,[0],null],['Regular clothes laundry','task',2,0,[3,6],null],['Bedsheets and pillowcases','task',1,0,[0],null],['Towels laundry','task',1,0,[0],null],['Deep house cleaning','task',1,0,[0],null],['STM32 development setup','once',1,0,[],null]];
+const initial=()=>({version:1,activities:defaults.map((a,i)=>({id:'a'+(i+1),name:a[0],type:a[1],target:a[2],minutes:a[3],weekdays:a[4],due:a[5],intervalWeeks:a[0]==='Bedsheets and pillowcases'?2:1,intervalMonths:a[0]==='Deep house cleaning'?1:0,created:today()})),checks:[],notes:{}});
+let state;
+try{const s=JSON.parse(localStorage.getItem(KEY));state=s&&Array.isArray(s.activities)&&Array.isArray(s.checks)?s:initial()}catch{state=initial()}
+if(!state.notes)state.notes={};
+
+let page='home',view='daily',selected=today(),filter='all',actFilter='all',monthCursor=today().slice(0,7),monthAct='all',editing=null;
+
+const persist=(cloud=true)=>{try{localStorage.setItem(KEY,JSON.stringify(state));if(cloud&&window.momentumCloud?.onLocalChange)window.momentumCloud.onLocalChange(state);$('saveStatus').textContent='Saved locally · '+new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}catch{alert('Browser storage is unavailable. Please export your data.')}};
+const checked=(id,d)=>state.checks.some(x=>x.id===id&&x.date===d);
+const count=(id,s,e)=>state.checks.filter(x=>x.id===id&&x.date>=s&&x.date<=e).length;
+const taskDue=(a,d)=>{if(a.type==='once')return !a.due||d>=a.due;if(a.type!=='task')return true;if(!(a.weekdays||[]).includes(parse(d).getDay()))return false;if(a.intervalMonths>0)return parse(d).getDate()<=7;if(a.intervalWeeks>1){const n=Math.round((parse(monday(d))-parse(monday(a.created||d)))/(DAY*7));return((n%a.intervalWeeks)+a.intervalWeeks)%a.intervalWeeks===0}return true};
+const planned=(a,d)=>a.type==='habit'?(a.weekdays||[]).includes(parse(d).getDay()):taskDue(a,d);
+const toggle=(id,d)=>{if(checked(id,d))state.checks=state.checks.filter(x=>!(x.id===id&&x.date===d));else state.checks.push({id,date:d});persist();render()};
+const weekOf=s=>{const m=monday(s);return Array.from({length:7},(_,i)=>add(m,i))};
+
+/* weekly progress for an activity */
+function prog(a,days){
+  const s=days[0],e=days[6];
+  if(a.type==='habit'){const n=count(a.id,s,e);return{n,goal:a.target,pct:Math.min(n/a.target,1),text:`${n} / ${a.target} this week`}}
+  if(a.type==='task'){const g=Math.max(1,days.filter(d=>planned(a,d)).length),n=Math.min(count(a.id,s,e),g);return{n,goal:g,pct:n/g,text:`${n} / ${g} due this week`}}
+  const done=state.checks.some(x=>x.id===a.id);return{n:done?1:0,goal:1,pct:done?1:0,text:done?'Done':'One-time task'}
+}
+const stripe=p=>`<div class="stripe"><i style="width:${Math.round(p*100)}%"></i><b>${Math.round(p*100)}%</b></div>`;
+const typeLabel=a=>a.type==='habit'?'Habit':a.type==='task'?'Task':'One-time';
+const weekPct=days=>{let n=0,g=0;for(const a of state.activities){if(a.type==='once')continue;const p=prog(a,days);n+=p.n;g+=p.goal}return g?n/g:0};
+
+/* shared pieces */
+function weekNav(){const d=weekOf(selected);return `<div class="weeknav"><span class="chip">${fmt(d[0])} – ${fmt(d[6])}</span><span class="grow"></span><button class="round sm" data-act="prev" aria-label="Previous week">${I('left')}</button><button class="chip" data-act="today">This week</button><button class="round sm" data-act="next" aria-label="Next week">${I('right')}</button></div>`}
+
+function cardHTML(a,i,days){
+  const p=prog(a,days),t=today();
+  const tiles=days.map(d=>{const done=checked(a.id,d),pl=planned(a,d);return `<button class="tile ${done?'done':''} ${d===selected?'sel':''} ${d===t?'today':''}" data-toggle="${esc(a.id)}" data-date="${d}" aria-pressed="${done}" aria-label="${esc(a.name)} ${d}"><span class="dow">${fmt(d,{weekday:'short'}).slice(0,3)}</span><span class="dn">${parse(d).getDate()}</span><span class="st">${done?CHK:pl?'<i class="pd"></i>':''}</span></button>`}).join('');
+  const clock=a.minutes?a.minutes+' min':a.type==='habit'?a.target+'× / week':'Flexible';
+  return `<div class="slot"><span class="chip">${pad2(i+1)} · ${typeLabel(a)}</span><span class="chip">${I('clock',18)}${clock}</span><button class="round sm more" data-edit="${esc(a.id)}" aria-label="Edit ${esc(a.name)}">${I('dots')}</button></div>
+  <article class="card"><h3 class="title">${esc(a.name)}</h3><div class="meta">${p.text}</div><div class="tiles">${tiles}</div>${stripe(p.pct)}</article>`
+}
+
+const todayLists=(d,days)=>({
+  sched:state.activities.filter(a=>planned(a,d)&&(a.type!=='habit'||(a.weekdays||[]).length)&&!(a.type==='once'&&state.checks.some(x=>x.id===a.id&&x.date!==d))),
+  flex:state.activities.filter(a=>a.type==='habit'&&!(a.weekdays||[]).length&&(checked(a.id,d)||count(a.id,days[0],days[6])<a.target))
+});
+/* DAILY */
+function drawDaily(){
+  const days=weekOf(selected),t=today();
+  const strip=`<div class="strip">${days.map(d=>`<button class="sd ${d===selected?'on':''} ${d===t?'today':''}" data-day="${d}"><small>${fmt(d,{weekday:'short'}).slice(0,3)}</small><b>${parse(d).getDate()}</b>${state.checks.some(c=>c.date===d)?'<i></i>':''}</button>`).join('')}</div>`;
+  const doneToday=state.checks.filter(c=>c.date===selected).length;
+  const plannedN=state.activities.filter(a=>planned(a,selected)&&a.type!=='habit'||a.type==='habit'&&planned(a,selected)).length;
+  const wp=weekPct(days);
+  const prow=a=>{const p=prog(a,days),done=checked(a.id,selected);return `<button class="prow ${done?'done':''}" data-toggle="${esc(a.id)}" data-date="${selected}" aria-pressed="${done}"><span class="pc">${done?CHK:''}</span><span class="pt"><b>${esc(a.name)}</b><small>${esc(p.text)}${a.minutes?' · '+a.minutes+' min':''}</small></span></button>`};
+  const {sched,flex}=todayLists(selected,days);
+  const isT=selected===t;
+  const planCard=`<section class="card plan"><h3>${isT?'Today':esc(fmt(selected,{weekday:'long'}))}</h3>
+    ${sched.length?'<div class="grp">Planned · '+sched.filter(a=>checked(a.id,selected)).length+' / '+sched.length+'</div>'+sched.map(prow).join(''):'<div class="allclear">Nothing scheduled for this day.</div>'}
+    ${flex.length?'<div class="grp">Habits to fit in · '+flex.length+'</div>'+flex.map(prow).join(''):''}</section>`;
+  const sum=`<section class="card" style="margin-top:12px"><div class="sumrow"><div><div class="big">${doneToday}<span> done</span></div><div class="sub">${esc(fmt(selected,{weekday:'long',month:'short',day:'numeric'}))}${plannedN?' · '+plannedN+' planned':''}</div></div><div class="r"><div class="big">${Math.round(wp*100)}<span>%</span></div><div class="sub">this week</div></div></div>${stripe(wp)}</section>`;
+  const filt=`<div class="filters">${[['all','All'],['habit','Habits'],['task','Recurring'],['once','One-time']].map(([k,l])=>`<button data-filter="${k}" class="${filter===k?'on':''}">${l}</button>`).join('')}</div>`;
+  const list=state.activities.map((a,i)=>({a,i})).filter(x=>filter==='all'||x.a.type===filter);
+  let cards=list.map(x=>cardHTML(x.a,x.i,days)).join('');
+  if(!list.length)cards='<div class="empty">No activities here yet. Tap + to add one.</div>';
+  if(list.length)cards='<div class="heading">This week · all activities</div>'+cards;
+  const note=`<div class="slot"><span class="chip">Note</span><span class="chip">${esc(fmt(selected,{weekday:'short',month:'short',day:'numeric'}))}</span></div><article class="card" style="padding:12px"><textarea id="dayNote" style="margin:0" placeholder="What went well? Anything to remember?"></textarea></article>`;
+  $('v-daily').innerHTML=weekNav()+strip+planCard+sum+filt+cards+note;
+  $('dayNote').value=state.notes[selected]||'';
+  $('dayNote').oninput=e=>{state.notes[selected]=e.target.value;persist()};
+}
+
+/* WEEKLY — everything fits on screen, no horizontal scroll */
+function drawWeekly(){
+  const days=weekOf(selected),t=today(),wp=weekPct(days);
+  const habits=state.activities.filter(a=>a.type==='habit');
+  const met=habits.filter(a=>count(a.id,days[0],days[6])>=a.target).length;
+  const sessions=state.checks.filter(c=>c.date>=days[0]&&c.date<=days[6]).length;
+  const sum=`<section class="card"><div class="sumrow"><div><div class="big">${sessions}<span> check-ins</span></div><div class="sub">${met} / ${habits.length} habits on target</div></div><div class="r"><div class="big">${Math.round(wp*100)}<span>%</span></div><div class="sub">week progress</div></div></div>${stripe(wp)}</section>`;
+  const head='<div></div>'+days.map(d=>`<div class="mh ${d===t?'today':''}">${fmt(d,{weekday:'short'}).slice(0,3)}<b>${parse(d).getDate()}</b></div>`).join('');
+  const rows=state.activities.map(a=>{const p=prog(a,days);return `<div class="mname">${esc(a.name)}<small>${a.type==='once'?(p.n?'Done':'Open'):p.n+' / '+p.goal}</small></div>`+days.map(d=>{const done=checked(a.id,d);return `<button class="cell ${done?'done':''} ${planned(a,d)?'plan':''}" data-toggle="${esc(a.id)}" data-date="${d}" aria-label="${esc(a.name)} ${d}">${done?CHK:''}</button>`}).join('')}).join('');
+  $('v-weekly').innerHTML=weekNav()+sum+`<section class="card" style="margin-top:12px;padding:16px 12px"><div class="matrix">${head}${rows}</div><div class="legend"><span><i class="f"></i>Done</span><span><i class="p"></i>Planned</span><span><i></i>Available</span></div></section>`;
+}
+
+/* MONTHLY — calendar like the reference */
+function drawMonthly(){
+  const [y,m]=monthCursor.split('-').map(Number),last=new Date(y,m,0).getDate(),lead=(new Date(y,m-1,1).getDay()+6)%7;
+  const rows=Math.ceil((lead+last)/7),start=add(monthCursor+'-01',-lead),t=today();
+  const single=monthAct!=='all'?state.activities.find(a=>a.id===monthAct):null;
+  if(!single)monthAct='all';
+  const total=Math.max(1,state.activities.length);
+  let cells='',doneDays=0,checkins=0;
+  for(let i=0;i<rows*7;i++){
+    const d=add(start,i),inM=d.slice(0,7)===monthCursor,n=parse(d).getDate();
+    let cls='d'+(inM?'':' out')+(d===t?' today':''),style='';
+    if(single){const done=checked(single.id,d);if(done){cls+=' done';if(inM)doneDays++}else if(planned(single,d)&&inM)cls+=' plan'}
+    else{const c=state.checks.filter(x=>x.date===d).length;if(c){const r=Math.min(1,c/Math.max(3,total*.4)),al=(.18+.82*r).toFixed(2);style=`background:rgba(11,11,11,${al});color:${al>.5?'#fff':'#0b0b0b'}`;if(inM){doneDays++;checkins+=c}}}
+    cells+=`<button class="${cls}" style="${style}" data-cal="${d}">${n}</button>`;
+  }
+  if(single)checkins=doneDays;
+  const opts=`<option value="all">All activities</option>`+state.activities.map(a=>`<option value="${esc(a.id)}" ${a.id===monthAct?'selected':''}>${esc(a.name)}</option>`).join('');
+  const title=new Date(y,m-1,1).toLocaleDateString(undefined,{month:'long',year:'numeric'});
+  const elapsed=monthCursor===t.slice(0,7)?parse(t).getDate():monthCursor<t.slice(0,7)?last:0;
+  const p=single?(elapsed?doneDays/elapsed:0):(elapsed?doneDays/elapsed:0);
+  $('v-monthly').innerHTML=`<div class="weeknav"><span class="chip">${esc(title)}</span><span class="grow"></span><button class="round sm" data-act="mprev" aria-label="Previous month">${I('left')}</button><button class="chip" data-act="mnow">This month</button><button class="round sm" data-act="mnext" aria-label="Next month">${I('right')}</button></div>
+  <section class="card"><div class="sumrow"><div><div class="big">${doneDays}<span> active days</span></div><div class="sub">${single?esc(single.name):checkins+' check-ins in total'}</div></div><div class="r"><div class="big">${Math.round(p*100)}<span>%</span></div><div class="sub">of days so far</div></div></div>${stripe(p)}</section>
+  <section class="card" style="margin-top:12px;padding:16px 12px"><div class="selwrap" style="margin-left:2px"><select id="monthAct" aria-label="Activity">${opts}</select>${I('caret',16)}</div>
+  <div class="cal">${['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map(x=>`<div class="h">${x}</div>`).join('')}${cells}</div>
+  <div class="legend">${single?'<span><i class="f"></i>Done</span><span><i class="p"></i>Planned</span><span>Tap a day to toggle</span>':'<span>Darker = more check-ins</span><span>Tap a day to open it</span>'}</div></section>`;
+}
+
+/* ACTIVITIES page */
+function drawActivities(){
+  const list=state.activities.map((a,i)=>({a,i})).filter(x=>actFilter==='all'||x.a.type===actFilter);
+  $('actCount').textContent=state.activities.length+' activities';
+  document.querySelectorAll('#actFilters button').forEach(b=>b.classList.toggle('on',b.dataset.filter===actFilter));
+  const WD=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  $('actList').innerHTML=list.map(({a,i})=>`<div class="arow"><span class="n">${pad2(i+1)}</span><div class="t"><b>${esc(a.name)}</b><span>${a.type==='habit'?a.target+'× / week':a.type==='task'?'Recurring task':'One-time task'}${a.minutes?' · '+a.minutes+' min':''}${(a.weekdays||[]).length?' · '+a.weekdays.map(d=>WD[d]).join(', '):''}</span></div><button class="round sm" style="background:var(--chip)" data-edit="${esc(a.id)}" aria-label="Edit">${I('dots')}</button></div>`).join('')||'<div class="empty">No activities in this view.</div>';
+}
+
+/* master render */
+function render(){
+  for(const p of['home','activities','data'])$('page-'+p).hidden=page!==p;
+  document.querySelectorAll('#navs button').forEach(b=>b.classList.toggle('on',b.dataset.page===page));
+  const home=page==='home';
+  $('seg').hidden=!home;$('pageTitle').hidden=home;
+  $('pageTitle').textContent=page==='activities'?'Activities':'Data & sync';
+  $('leftBtn').innerHTML=home?I('cal'):I('back');
+  $('leftBtn').setAttribute('aria-label',home?'Jump to today':'Back');
+  document.querySelectorAll('#seg button').forEach(b=>b.classList.toggle('on',b.dataset.view===view));
+  if(home){for(const v of['daily','weekly','monthly'])$('v-'+v).hidden=view!==v;
+    if(view==='daily')drawDaily();else if(view==='weekly')drawWeekly();else drawMonthly()}
+  if(page==='activities')drawActivities();
+  if(page==='data')drawNotif();
+  queueNotif();
+}
+
+/* events */
+const go=p=>{page=p;render();scrollTo({top:0})};
+document.addEventListener('click',e=>{
+  const t=e.target.closest('[data-toggle],[data-day],[data-edit],[data-filter],[data-view],[data-page],[data-act],[data-cal]');
+  if(!t)return;const ds=t.dataset;
+  if(ds.toggle)return toggle(ds.toggle,ds.date||selected);
+  if(ds.day){selected=ds.day;return render()}
+  if(ds.edit)return openEditor(ds.edit);
+  if(ds.view){view=ds.view;return render()}
+  if(ds.page)return go(ds.page);
+  if(ds.cal){if(monthAct!=='all')return toggle(monthAct,ds.cal);selected=ds.cal;view='daily';return render()}
+  if(ds.filter){if(t.closest('#actFilters'))actFilter=ds.filter;else filter=ds.filter;return render()}
+  switch(ds.act){
+    case'prev':selected=add(selected,-7);break;
+    case'next':selected=add(selected,7);break;
+    case'today':selected=today();break;
+    case'mprev':shiftMonth(-1);return;
+    case'mnext':shiftMonth(1);return;
+    case'mnow':monthCursor=today().slice(0,7);break;
+    case'add':return openEditor();
+  }
+  render();
+});
+document.addEventListener('change',e=>{if(e.target.id==='monthAct'){monthAct=e.target.value;render()}});
+function shiftMonth(n){const[y,m]=monthCursor.split('-').map(Number);monthCursor=iso(new Date(y,m-1+n,1)).slice(0,7);render()}
+$('leftBtn').onclick=()=>{if(page==='home'){selected=today();monthCursor=today().slice(0,7);render();scrollTo({top:0})}else go('home')};
+$('avatarBtn').onclick=()=>go('data');
+
+/* editor */
+const WDO=[[1,'Mon'],[2,'Tue'],[3,'Wed'],[4,'Thu'],[5,'Fri'],[6,'Sat'],[0,'Sun']];
+$('wds').innerHTML=WDO.map(([v,l])=>`<label><input type="checkbox" value="${v}"><span>${l}</span></label>`).join('');
+const syncTypeUI=()=>{$('targetWrap').style.visibility=$('activityType').value==='habit'?'visible':'hidden'};
+$('activityType').onchange=syncTypeUI;
+function openEditor(id=null){
+  editing=id;const a=state.activities.find(x=>x.id===id);
+  $('editorHeading').textContent=a?'Edit activity':'Add activity';
+  $('activityName').value=a?.name||'';$('activityType').value=a?.type||'habit';$('activityTarget').value=a?.target||3;
+  $('activityMinutes').value=a?.minutes||'';$('activityDue').value=a?.due||'';
+  document.querySelectorAll('#wds input').forEach(i=>i.checked=(a?.weekdays||[]).includes(Number(i.value)));
+  $('deleteActivity').style.display=a?'':'none';syncTypeUI();$('editor').showModal();
+}
+$('cancelEditor').onclick=()=>$('editor').close();
+$('saveActivity').onclick=()=>{
+  const name=$('activityName').value.trim(),type=$('activityType').value,target=Math.max(1,Math.min(7,Number($('activityTarget').value)||1)),minutes=Math.max(0,Number($('activityMinutes').value)||0),due=$('activityDue').value||null;
+  if(!name)return alert('Please enter an activity name.');
+  const weekdays=[...document.querySelectorAll('#wds input:checked')].map(i=>Number(i.value));
+  if(editing)Object.assign(state.activities.find(a=>a.id===editing),{name,type,target,minutes,due,weekdays});
+  else state.activities.push({id:'a'+Date.now().toString(36)+Math.random().toString(36).slice(2,6),name,type,target,minutes,due,weekdays,intervalWeeks:1,intervalMonths:0,created:today()});
+  persist();$('editor').close();render();
+};
+$('deleteActivity').onclick=()=>{if(!editing||!confirm('Delete this activity and its check-in history?'))return;state.activities=state.activities.filter(a=>a.id!==editing);state.checks=state.checks.filter(c=>c.id!==editing);persist();$('editor').close();render()};
+
+/* export / import */
+const csvCell=s=>'"'+String(s??'').replace(/"/g,'""')+'"';
+const download=(name,content,mime)=>{const blob=new Blob([content],{type:mime}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),2000)};
+function makeCSV(){const cols=['record_type','id','name','type','target_weekly','minutes','weekdays','due','interval_weeks','interval_months','created','date','note'];const rows=[cols];for(const a of state.activities)rows.push(['activity',a.id,a.name,a.type,a.target,a.minutes,(a.weekdays||[]).join(';'),a.due||'',a.intervalWeeks||1,a.intervalMonths||0,a.created||'','','']);for(const c of state.checks)rows.push(['checkin',c.id,'','','','','','','','','',c.date,'']);for(const[date,note]of Object.entries(state.notes))if(note)rows.push(['note','','','','','','','','','','',date,note]);return '\ufeff'+rows.map(r=>r.map(csvCell).join(',')).join('\r\n')}
+$('exportBtn').onclick=()=>download('momentum-tracker-'+today()+'.csv',makeCSV(),'text/csv;charset=utf-8');
+$('backupBtn').onclick=()=>download('momentum-backup-'+today()+'.json',JSON.stringify(state,null,2),'application/json');
+$('importBtn').onclick=()=>{$('fileImport').accept='.csv,text/csv';$('fileImport').click()};
+$('jsonImportBtn').onclick=()=>{$('fileImport').accept='.json,application/json';$('fileImport').click()};
+$('saveNowBtn').onclick=()=>{persist();$('saveStatus').textContent='Saved locally ✓ · '+new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})};
+function parseCSV(text){text=text.replace(/^\ufeff/,'');const rows=[];let row=[],field='',q=false;for(let i=0;i<text.length;i++){const ch=text[i];if(q){if(ch==='"'&&text[i+1]==='"'){field+='"';i++}else if(ch==='"')q=false;else field+=ch}else if(ch==='"')q=true;else if(ch===','){row.push(field);field=''}else if(ch==='\n'){row.push(field.replace(/\r$/,''));rows.push(row);row=[];field=''}else field+=ch}if(field||row.length){row.push(field);rows.push(row)}return rows}
+function fromCSV(text){const rows=parseCSV(text),cols=rows.shift();if(!cols||!cols.includes('record_type')||!cols.includes('id'))throw Error('Not a Momentum CSV file');const result={version:1,activities:[],checks:[],notes:{}};for(const values of rows){const r=Object.fromEntries(cols.map((k,i)=>[k,values[i]||'']));if(r.record_type==='activity')result.activities.push({id:r.id,name:r.name,type:r.type,target:Number(r.target_weekly)||1,minutes:Number(r.minutes)||0,weekdays:r.weekdays?r.weekdays.split(';').map(Number):[],due:r.due||null,intervalWeeks:Number(r.interval_weeks)||1,intervalMonths:Number(r.interval_months)||0,created:r.created||today()});if(r.record_type==='checkin')result.checks.push({id:r.id,date:r.date});if(r.record_type==='note')result.notes[r.date]=r.note}if(!result.activities.length)throw Error('No activities found');return result}
+$('fileImport').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{const text=await f.text(),next=f.name.toLowerCase().endsWith('.json')?JSON.parse(text):fromCSV(text);if(!Array.isArray(next.activities)||!Array.isArray(next.checks)||typeof next.notes!=='object')throw Error('Invalid backup structure');if(confirm('Replace all data on this device with the imported backup? Export your current data first if needed.')){state=next;persist();render();alert('Import complete.')}}catch(err){alert('Import failed: '+err.message)}e.target.value=''};
+$('resetBtn').onclick=()=>{if(confirm('Reset all activities, check-ins and notes to the original starter list? This cannot be undone unless you have a backup.')){state=initial();persist();render()}};
+
+/* cloud hooks used by cloud-sync.js */
+window.momentumApplyCloud=remote=>{if(!remote||!Array.isArray(remote.activities)||!Array.isArray(remote.checks)||!remote.notes)return;state=remote;persist(false);render()};
+window.momentumGetLocal=()=>structuredClone(state);
+
+
+/* today notification (Android Chrome / installed PWA) */
+const NKEY='momentum-notif-on';
+const notifOK=()=>'Notification' in window&&'serviceWorker' in navigator;
+let ntimer=null;
+async function updateNotif(){
+  if(!notifOK()||Notification.permission!=='granted'||localStorage.getItem(NKEY)!=='1')return;
+  try{
+    const t=today(),{sched,flex}=todayLists(t,weekOf(t)),all=[...sched,...flex],left=all.filter(a=>!checked(a.id,t)),done=all.length-left.length;
+    const reg=await navigator.serviceWorker.ready;
+    await reg.showNotification(all.length?`Today · ${done} / ${all.length} done`:'Today · nothing planned',{body:left.length?left.slice(0,4).map(a=>a.name).join(' · '):'All done. Nice work.',tag:'momentum-today',renotify:false,silent:true,requireInteraction:true,icon:'./icons/icon-192.png',badge:'./icons/icon-192.png'});
+  }catch(e){console.warn(e)}
+}
+const queueNotif=()=>{clearTimeout(ntimer);ntimer=setTimeout(updateNotif,500)};
+function drawNotif(){
+  const on=localStorage.getItem(NKEY)==='1'&&notifOK()&&Notification.permission==='granted';
+  $('notifBtn').textContent=on?'Turn off':'Turn on';
+  $('notifBtn').disabled=!notifOK();
+  $('notifStatus').textContent=!notifOK()?'Not supported in this browser':Notification.permission==='denied'?'Blocked — allow notifications in Android settings for this app':on?'On':'Off';
+}
+$('notifBtn').onclick=async()=>{
+  if(!notifOK())return;
+  const on=localStorage.getItem(NKEY)==='1'&&Notification.permission==='granted';
+  if(on){localStorage.setItem(NKEY,'0');const reg=await navigator.serviceWorker.ready;(await reg.getNotifications({tag:'momentum-today'})).forEach(n=>n.close())}
+  else{const p=await Notification.requestPermission();if(p==='granted'){localStorage.setItem(NKEY,'1');updateNotif()}}
+  drawNotif();
+};
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')queueNotif()});
+
+/* static icons */
+$('fab').innerHTML=I('plus',26,2);
+const navIcons={home:'home',activities:'list',data:'cloud'};
+document.querySelectorAll('#navs button').forEach(b=>b.innerHTML=I(navIcons[b.dataset.page],24));
+$('saveStatus').textContent='Loaded local data';
+render();
+})();
+</script>
+<script type="module" src="./cloud-sync.js"></script>
+<script>if("serviceWorker" in navigator && location.protocol.startsWith("http"))window.addEventListener("load",()=>navigator.serviceWorker.register("./service-worker.js").catch(console.warn));</script>
+</body>
+</html>
